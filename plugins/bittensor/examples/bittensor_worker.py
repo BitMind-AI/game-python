@@ -137,48 +137,31 @@ class BittensorImageWorker:
         }
 
     def _get_original_tweet(self, tweet_id: str) -> Optional[Dict]:
-        """Get the original (root) tweet of a thread."""
-        max_retries = 3
-        base_wait_time = 60  # seconds
-        
-        for attempt in range(max_retries):
-            try:
-                current_tweet = self._get_tweet_data(tweet_id)
-                if not current_tweet or 'data' not in current_tweet:
-                    raise ValueError(f"Tweet with ID {tweet_id} not found")
+        """Get the original (root) tweet of a thread more efficiently."""
+        try:
+            # Get all the data we need in one API call
+            tweet_data = self._get_tweet_data(tweet_id)
+            if not tweet_data or 'data' not in tweet_data:
+                raise ValueError(f"Tweet with ID {tweet_id} not found")
 
-                # Access dictionary values instead of attributes
-                referenced_tweets = current_tweet['data'].get('referenced_tweets')
-                if not referenced_tweets:
-                    return self._format_tweet_data(current_tweet['data'])
+            # If this tweet has no references, it's the original
+            referenced_tweets = tweet_data['data'].get('referenced_tweets', [])
+            if not referenced_tweets:
+                return self._format_tweet_data(tweet_data['data'])
 
-                while referenced_tweets:
-                    parent_ref = next(
-                        (ref for ref in referenced_tweets if ref['type'] == 'replied_to'),
-                        None
-                    )
-                    if not parent_ref:
-                        break
+            # Find the conversation_id - this is the ID of the very first tweet in the thread
+            conversation_id = tweet_data['data'].get('conversation_id')
+            if conversation_id and conversation_id != tweet_id:
+                root_tweet = self._get_tweet_data(conversation_id)
+                if root_tweet and 'data' in root_tweet:
+                    return self._format_tweet_data(root_tweet['data'])
 
-                    time.sleep(2)  # Rate limit protection
-                    
-                    current_tweet = self._get_tweet_data(str(parent_ref['id']))
-                    if not current_tweet or 'data' not in current_tweet:
-                        break
-                    
-                    referenced_tweets = current_tweet['data'].get('referenced_tweets')
+            # Fallback: return the current tweet if we can't find the root
+            return self._format_tweet_data(tweet_data['data'])
 
-                return self._format_tweet_data(current_tweet['data'])
-        
-            except Exception as e:
-                if "429" in str(e):  # Rate limit error
-                    wait_time = base_wait_time * (attempt + 1)
-                    print(f"[WARN] Rate limit hit, waiting {wait_time} seconds (attempt {attempt + 1}/{max_retries})...")
-                    time.sleep(wait_time)
-                    if attempt == max_retries - 1:
-                        raise RuntimeError(f"Rate limit persisted after {max_retries} retries")
-                    continue
-                raise
+        except Exception as e:
+            print(f"Error getting original tweet: {e}")
+            return None
     
     def detect_image(self, tweet_id: str) -> tuple:
         """Detect if an image in a tweet is AI-generated using Bittensor subnet"""
@@ -254,7 +237,7 @@ class BittensorImageWorker:
                 else:
                     response_text = "SN34 Media Analysis: "
 
-                response_text += f"{'AI-Generated' if is_ai else 'Not AI-Generated'} ({confidence}%)"
+                response_text += f"{'AI-Generated' if is_ai else 'Not AI-Generated'} ({confidence}% confidence of AI)"
                 response_text += "\nhttps://github.com/BitMind-AI/bitmind-subnet"
                 
                 # Add debug info to console but not to tweet
@@ -281,8 +264,12 @@ class BittensorImageWorker:
         """Create worker with image detection capability"""
         return Worker(
             api_key=self.game_api_key,
-            description="Worker for detecting AI-generated images using Bittensor",
-            instruction="Analyze images to determine if they are AI-generated",
+            description="Processing Twitter mentions for BitMind image analysis when users ask about image authenticity.",
+            instruction=(
+                "Analyze images using BitMind only when "
+                "users specifically ask about whether an image is real, AI-generated, "
+                "or a deepfake."
+            ),            
             get_state_fn=self._get_state,
             action_space=[
                 Function(

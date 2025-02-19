@@ -103,12 +103,13 @@ class BittensorImageWorker:
         """Create worker with image detection capability."""
         return Worker(
             api_key=self.game_api_key,
-            description="Processing Twitter mentions for BitMind image analysis when users ask about image authenticity.",
+            description="Processing Twitter mentions for BitMind image analysis ONLY when users ask about image authenticity.",
             instruction=(
-                "Analyze images using BitMind only when "
+                "Monitor Twitter mentions and analyze images using BitMind ONLY when "
                 "users specifically ask about whether an image is real, AI-generated, "
-                "or a deepfake."
-            ),            
+                "or a deepfake. Ignore mentions that don't explicitly ask about "
+                "image authenticity."
+            ),  
             get_state_fn=self._get_state,
             action_space=[
                 Function(

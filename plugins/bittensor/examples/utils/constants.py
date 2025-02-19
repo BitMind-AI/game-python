@@ -7,7 +7,7 @@ class TwitterRateLimitConfig:
     WINDOW: int = 900  # 15 minutes
     MIN_SLEEP: int = 60
     MAX_SLEEP: int = 900
-    BUFFER: int = 1
+    BUFFER: int = 2
     MAX_REQUESTS: int = 15
     MAX_RETRIES: int = 3
 

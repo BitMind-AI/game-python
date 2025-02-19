@@ -161,11 +161,17 @@ class TwitterPlugin:
         Raises:
             tweepy.TweepyException: If there's an error posting the reply.
         """
+        print("Replying: " + reply)
         try:
-            self.twitter_client.create_tweet(in_reply_to_tweet_id=tweet_id, text=reply)
+            response = self.twitter_client.create_tweet(in_reply_to_tweet_id=tweet_id, text=reply)
             self.logger.info(f"Successfully replied to tweet {tweet_id}.")
+            return response
         except tweepy.TweepyException as e:
+            if "429" in str(e):
+                # Instead of logging, raise the error for the worker to handle
+                raise e
             self.logger.error(f"Failed to reply to tweet {tweet_id}: {e}")
+            raise e
 
     def _post_tweet(self, tweet: str) -> Dict[str, Any]:
         """

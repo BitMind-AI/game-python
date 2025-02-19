@@ -10,9 +10,9 @@ from datetime import datetime, timezone, timedelta
 from bittensor_worker import BittensorImageWorker
 
 # Constants for Twitter API rate limits
-CHECK_INTERVAL_MINUTES = 15  # Twitter's rate limit window
-MAX_MENTIONS_PER_CHECK = 7   # Limit to avoid rate limits
-LOOKBACK_MINUTES = 45        # How far back to look for mentions
+CHECK_INTERVAL_MINUTES = 30  # Twitter's rate limit window
+MAX_MENTIONS_PER_CHECK = 5   # Limit to avoid rate limits
+LOOKBACK_MINUTES = 60        # How far back to look for mentions
 
 # Load environment variables
 load_dotenv()
